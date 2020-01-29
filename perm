@@ -1,0 +1,271 @@
+# Assignment 2
+# Course:                UNX510
+# Family Name:           Lapsiwala
+# Given Name:            Sahil
+# Student Number:        132-584-160
+# Login name:            snlapsiwala
+# Professor:             Les Czegel
+# Due Date:              August 16, 2019
+#
+# I declare that the attached assignment is my own work in accordance with
+# Seneca Academic Policy.  No part of this assignment has been copied manually
+# or electronically from any other source (including web sites) or distributed
+# to other students.
+
+#!/bin/bash
+trap 'stty icanon echo; rm /tmp/pathdisplay.temp.$$; tput cup $lines 0; exit 0' INT
+
+
+case $# in
+	0) dir=. ;;
+	1) dir=$1 ;;
+	*) echo "Usage: perm [ dir-name ]" >&2
+	exit 1 ;;
+esac
+if [ ! -d $dir ]
+then
+	echo "$1 is not a valid directory name" >&2
+	exit 1
+fi
+
+
+
+directories=$(realpath $dir | sed -r 's/\//& \n/g' | awk '{$1=$1} {FS="/"; OFS=""} {print "/"$1}' | sed 's/\/\//\//')
+
+x=""
+for z in $directories
+do
+    x=$x$z
+    ls -dl $x | head -2 | tail -1  >> /tmp/pathdisplay.temp.$$
+done
+
+totallines=$(cat /tmp/pathdisplay.temp.$$ | wc -l)
+linenumber=1
+filecolumn=24
+cursor=$(($totallines*2+1))
+redraw=yes
+position=$(($totallines*2+1))
+y=$(($totallines*2+2))
+stty -icanon min 1 time 0 -echo
+col=`tput cols`
+
+while true
+do
+	if [ $redraw = yes ]
+		
+	then clear
+    echo "Owner   Group   Other   Filename"
+    echo "-----   -----   -----   --------"
+    printf "\n"
+    sed -n "$linenumber, $totallines p" /tmp/pathdisplay.temp.$$ |
+    while read line
+    do
+   
+    (echo -n $line | cut -c2- | awk '{print $1,$9}' | sed 's/./& /1' |sed 's/./& /3' | sed 's/./&   /5' \
+    | sed 's/./& /9' | sed 's/./& /11' | sed 's/./&   /13' | sed 's/./& /17' | sed 's/./& /19' | \
+    sed 's/./&  /21' | sed 's/\/.*\///' | sed 's/[.][ ][/]/ \//') | cut -c -$col 
+
+        printf "\n"
+
+    done
+    
+    
+    if [ $cursor -eq $position ]
+        then
+        tput cup $y 0 
+        details=$(sed -n "$(($position/2)) p" /tmp/pathdisplay.temp.$$)
+	   echo -n " Links: $(echo  $details | cut -d" " -f2)" 
+	   echo -n " Owner: $(echo  $details | cut -d" " -f3)"
+	   echo -n " Group: $(echo  $details | cut -d" " -f4)"
+	   echo -n " Size: $(echo  $details | cut -d" " -f5)"
+           echo -n " Modified: "
+	   echo -n $details | awk '{OFS=" "; print $6, $7, $8}'
+   fi
+   
+	lines=`tput lines`
+
+	tput cup $(($lines-4)) 0
+    	printf "Valid keys: k (up), j (down): move between filenames \n"
+        printf "            h (left), l (right): move between permissions \n"
+        printf "            r, w, x, -: change permissions;   q: quit"
+
+    	redraw=no
+   fi
+
+    tput cup $cursor $filecolumn
+    command=$(dd bs=3 count=1 2> /dev/null) 
+    case $command in
+        j) if [ $cursor -lt 25 -a $((linenumber + cursor)) -lt $(($totallines * 2 + 2)) ]
+                       then cursor=$((cursor + 2))
+                           position=$((position+2))
+                           y=$(($y+2))
+			   redraw=yes
+		   fi ;;
+       k) if [ $cursor -gt 3 ]
+                       then cursor=$((cursor - 2))
+                        position=$((position - 2))
+                        y=$(($y-2))
+			redraw=yes
+                       fi;;
+       h) if [ $filecolumn -gt 0 ]
+          then
+		  if [ $filecolumn -eq 24 ] || [ $filecolumn -eq 16 ] || [ $filecolumn -eq 8 ]
+                          then filecolumn=$(($filecolumn - 4))
+
+                  
+          else  
+                   filecolumn=$(($filecolumn - 2))
+
+           fi
+   fi;;
+ 
+       l) if [ $filecolumn -lt 24 ]
+       then
+	       if [ $filecolumn -eq 4 ] || [ $filecolumn -eq 12 ] || [ $filecolumn -eq 20 ]
+	       then filecolumn=$(($filecolumn + 4))
+	   else
+		   filecolumn=$(($filecolumn + 2))
+	   fi
+   fi ;;
+       x) if [ $filecolumn -eq 4 ] || [ $filecolumn -eq 12 ] || [ $filecolumn -eq 20 ]
+       then
+	       t=""
+	       perm=$(sed -n "$(($position/2)) p" /tmp/pathdisplay.temp.$$ | awk '{print $9}') 
+	       > /tmp/pathdisplay.temp.$$
+	       for i in $directories
+	       do
+		       t=$t$i
+		       if [ "$t" == "$perm" ]
+		       then
+			       if [ $filecolumn -eq 20 ]
+			       then
+			       chmod o+x $t 2> /dev/null
+		       fi
+		       if [ $filecolumn -eq 12 ]
+		       then
+			       chmod g+x $t 2> /dev/null
+		       fi
+	       if [ $filecolumn -eq 4 ]
+	       then
+		       chmod u+x $t1 2> /dev/null
+	       fi	       
+	       fi
+		       ls -ld $t | head -2 | tail -1 >> /tmp/pathdisplay.temp.$$
+	       done
+	      redraw=yes
+       fi ;;
+       
+          w) if [ $filecolumn -eq 2 ] || [ $filecolumn -eq 10 ] || [ $filecolumn -eq 18 ]
+	  then
+		  t1=""
+		  perm1=$(sed -n "$(($position/2)) p" /tmp/pathdisplay.temp.$$ | awk '{print $9}')
+		  > /tmp/pathdisplay.temp.$$
+		  for i in $directories
+		  do
+			  t1=$t1$i
+			  if [ "$t1" == "$perm1" ]
+			  then
+				  if [ $filecolumn -eq 2 ]
+				  then
+					  chmod u+w $t1 2> /dev/null
+				  fi
+				  if [ $filecolumn -eq 10 ]
+				  then
+					  chmod g+w $t1 2> /dev/null
+				  fi
+			  if [ $filecolumn -eq 18 ]
+			  then
+				  chmod o+w $t1 2> /dev/null
+			  fi
+		  fi
+			  ls -ld $t1 | head -2 | tail -1 >> /tmp/pathdisplay.temp.$$
+		  done
+		  redraw=yes
+	  fi ;;
+            r) if [ $filecolumn -eq 0 ] || [ $filecolumn -eq 8 ] || [ $filecolumn -eq 16 ]
+          then
+		  
+         	  t2=""
+	          perm2=$(sed -n "$(($position/2)) p" /tmp/pathdisplay.temp.$$ | awk '{print $9}')
+		  > /tmp/pathdisplay.temp.$$
+		  for i in $directories
+		  do
+			  t2=$t2$i
+			  if [ "$t2" == "$perm2" ]
+			  then
+				  if [ $filecolumn -eq 0 ]
+				  then
+					  chmod u+r $t2 2> /dev/null
+				  fi
+				  if [ $filecolumn -eq 8 ]
+				  then
+					  chmod g+r $t2 2> /dev/null
+				  fi
+				  if [ $filecolumn -eq 16 ]
+				  then
+					  chmod o+r $t2 2> /dev/null
+				  fi
+			  fi
+			  ls -ld $t2 | head -2 | tail -1 >> /tmp/pathdisplay.temp.$$
+		  done
+		  redraw=yes
+	  fi ;;
+
+  -)
+	  t3=""
+          perm3=$(sed -n "$(($position/2)) p" /tmp/pathdisplay.temp.$$ | awk '{print $9}')
+	  > /tmp/pathdisplay.temp.$$
+	  for i in $directories
+	  do
+		  t3=$t3$i
+		  if [ "$t3" == "$perm3" ]
+		  then
+			  if [ $filecolumn -eq 0 ]
+			  then
+				  chmod u-r $t3 2> /dev/null
+			  fi
+                          if [ $filecolumn -eq 2 ]
+                          then
+		                  chmod u-w $t3 2> /dev/null							    
+			  fi
+                          if [ $filecolumn -eq 4 ]
+                          then
+		                   chmod u-x $t3 2> /dev/null
+  			  fi
+			  if [ $filecolumn -eq 8 ]
+		          then
+				   chmod g-r $t3 2> /dev/null
+	 		   fi
+			   if [ $filecolumn -eq 10 ]
+			   then
+				   chmod g-w $t3 2> /dev/null
+			   fi
+			   if [ $filecolumn -eq 12 ]
+			   then
+				   chmod g-x $t3 2> /dev/null
+			   fi
+			   if [ $filecolumn -eq 16 ]
+			   then
+				   chmod o-r $t3 2> /dev/null
+			   fi
+			   if [ $filecolumn -eq 18 ]
+			   then
+				   chmod o-w $t3 2> /dev/null
+			   fi
+			   if [ $filecolumn -eq 20 ]
+			   then
+				   chmod o-x $t3 2> /dev/null
+			   fi
+		   fi
+		   ls -ld $t3 | head -2 | tail -1 >> /tmp/pathdisplay.temp.$$
+	done
+	redraw=yes ;;
+
+
+   q)rm /tmp/pathdisplay.temp.$$
+           stty icanon echo
+           tput cup $lines 0
+           exit 0 ;;
+   *) redraw=no ;;
+   esac
+done

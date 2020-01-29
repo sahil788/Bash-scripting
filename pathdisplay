@@ -1,0 +1,75 @@
+#!/bin/bash
+
+if [ "$#" == "0" ]
+then
+    set $(pwd)
+else 
+    if [  "$#" != "1" ] 
+    then    
+        echo "Usage: pathdisplay [ dir-name ]"
+        exit 1 
+    fi
+fi
+
+if [ ! -d "$1" ] 
+then
+    echo "$1 is not a valid directory name" >&2
+fi
+
+cursor=4
+filetotal=0
+redraw=yes
+stty -icanon min 1 time 0 -icrnl -echo
+tput smkx # set "keypad send mode", needed for cursor keys
+
+while true
+do
+    if [ $redraw = yes ]
+        then 
+        clear
+        echo "Owner   Group   Other   Filename"
+        echo "-----   -----   -----   --------"
+        directories=
+        for i in $(realpath $1 | sed 's/\// /g')
+        do
+            directories="$directories/$i"
+            filetotal=$(($filetotal + 1))
+            printf "$(ls -ld $directories | awk '{print $1}' | sed -e 's/^[-d]//' | sed 's/.../&  /g' | sed 's/[rwx-]/& /g')$i\n\n"
+        done
+        tput cup 22 0
+        echo "Valid commands:  u(p)  d(own)  q(uit)"
+        redraw=no
+    fi
+    
+    #tput cup $cursor 24
+    #stty -icanon min 1 time 0 -icrnl -echo
+    #key=
+    #while [ "$key" != "q" ]
+    #do
+       # read -n 1 -r key
+       # if [ "$key" == "u" ]
+       #     then
+       #     cursor=$(($cursor - 2 ))
+       # elif [ "$key" == "d" ]
+       #     then
+       #     cursor=$((cursor + 2))
+       # elif ["$key" == "q" ]
+       #     then 
+       #         #stty icanon icrnl echo
+       #        tput cup 27 0
+        #        exit 0 
+        #fi
+        #tput cup $cursor 24
+    #done
+    #command=$(dd bs=3 count=1 2> /dev/null)
+    #case $command in
+     #   u |# echo "it's at u" 
+      #      cursor=$(($cursor - 2 )) ;;
+       # d) cursor=$((cursor + 2))  ;;
+        #q)  rm /tmp/cdir.temp.$$
+         #   stty icanon icrnl echo
+          #  tput cup 27 0
+           # exit 0 ;;
+   #esac
+stty icanon icrnl echo
+done

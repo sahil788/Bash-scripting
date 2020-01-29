@@ -1,0 +1,91 @@
+#!/bin/bash
+trap 'stty icanon echo; rm /tmp/pathdisplay.temp.$$; tput cup 19 0; exit 0' INT
+
+
+case $# in
+	0) dir=. ;;
+	1) dir=$1 ;;
+	*) echo "Usage: pathdisplay [ dir-name ]" >&2
+	exit 1 ;;
+esac
+if [ ! -d $dir ]
+then
+	echo "$1 is not a valid directory name" >&2
+	exit 1
+fi
+
+
+#$cd $dir
+#ls -al | head -1 +2  > /tmp/pathdisplay.temp.$$
+array=$(realpath $dir | sed -r 's/\//& \n/g' | awk '{$1=$1} {FS="/"; OFS=""} {print "/"$1}' | sed 's/\/\//\//')
+
+x=""
+for z in $array
+do
+    x=$x$z
+    ls -dl $x | head -2 | tail -1 >> /tmp/pathdisplay.temp.$$
+done
+
+filetotal=$(cat /tmp/pathdisplay.temp.$$ | wc -l)
+filenum=1
+filecolumn=24
+cursor=$(($filetotal*2+1))
+position=$(($filetotal*2+1))
+y=$(($filetotal*2+2))
+stty -icanon min 1 time 0 -echo
+
+while true
+do
+    clear
+    echo "Owner   Group   Other   Filename"
+    echo "-----   -----   -----   --------"
+    printf "\n"
+    sed -n "$filenum, $filetotal p" /tmp/pathdisplay.temp.$$ |
+    while read line
+    do
+    #sed -n "$filenum, $((filenum + 11)) p" /tmp/pathdisplay.temp.$$ | cut -c2- |  awk 'NR!=1 {print $1,$9}' | sed 's/./& /1'|sed 's/./& /3' | sed 's/./&   /5' | sed 's/./& /9' | sed 's/./& /11' | sed 's/./&   /13' | sed 's/./& /17' | sed 's/./& /19' | sed 's/./&  /21' |
+    echo -n $line | cut -c2- | awk '{print $1,$9}' | sed 's/./& /1' |sed 's/./& /3' | sed 's/./&   /5' | sed 's/./& /9' | sed 's/./& /11' | sed 's/./&   /13' | sed 's/./& /17' | sed 's/./& /19' | sed 's/./&  /21' | sed 's/\/.*\///' | sed 's/[.][ ][/]/ \//'
+        printf "\n"
+    done
+    if [ $cursor -eq $position ]
+        then
+        tput cup $y 0 
+        ln=$(sed -n "$(($position/2)) p" /tmp/pathdisplay.temp.$$)
+            echo -n " Links: "
+            echo -n $ln | awk '{printf $2}'
+            echo -n " Owner: "
+            echo -n $ln | awk '{printf $3}'
+            echo -n " Group: "
+            echo -n $ln | awk '{printf $4}'
+	    echo -n " Size: "
+	    echo -n $ln | awk '{printf $5}'
+            echo -n " Modified: "
+            echo -n $ln | awk '{OFS=" "; print $6, $7, $8}'
+     else
+            printf "\n"
+     fi
+lines=`tput lines`
+#lines2=`expr \($lines - 1\) / 1`
+#`tput sc`
+tput cup $(($lines-2)) 0
+    printf "Valid commands: u(p) d(own) q(uit)"
+    tput cup $cursor $filecolumn
+    command=$(dd bs=3 count=1 2> /dev/null) 
+    case $command in
+        d) if [ $cursor -lt 25 -a $((filenum + cursor)) -lt $(($filetotal * 2 + 2)) ]
+                       then cursor=$((cursor + 2))
+                           position=$((position+2))
+                        
+			 y=$(($y+2)) 
+                       fi ;;
+       u) if [ $cursor -gt 3 ]
+                       then cursor=$((cursor - 2))
+                        position=$((position - 2))
+                        y=$(($y-2))
+                       fi;;
+       q)rm /tmp/pathdisplay.temp.$$
+           stty icanon echo
+           tput cup $lines 0
+           exit 0 ;;
+   esac
+done

@@ -1,0 +1,63 @@
+#!/bin/bash
+trap  'stty icanon  echo; rm /tmp/pathdisplay.temp.$$; tput cup 19 0; exit 0' INT
+case $# in
+   0) dir=. ;;
+   1) dir=$1 ;;
+   *) echo "Usage: pathdisplay [ dir-name ]" >&2
+	 exit 1 ;;
+esac
+if [ ! -d $dir ]
+   then echo "$1 is not a valid directory name" >&2
+	exit 1
+fi
+
+
+
+cd $dir
+#ls -al | tail -n +2  > /tmp/pathdisplay.temp.$$
+
+filetotal=$(cat /tmp/pathdisplay.temp.$$ | wc -l)
+filenum=1
+filecolumn=24
+cursor=6
+stty -icanon min 1 time 0 -echo
+
+#while true
+#do
+	clear
+	
+echo "Owner   Group   Other   Filename"
+
+echo "-----   -----   -----   --------"
+#sed -n "$filenum, $((filenum + 5 )) p" /tmp/pathdisplay.temp.$$ |
+for filename in / $(echo $dir | tr '/' ' ')
+do
+   cd $filename
+   line=$(ls -ld | cut -c2-10 |sed 's/.../&  /g' | sed 's/[rwx-]/& /gi')
+   echo "$line""$filename" >> /tmp/pathdisplay.temp.$$
+done
+	sed -n "$filenum, $((filenum + 5 )) p" /tmp/pathdisplay.temp.$$
+while true
+do	
+	tput cup 13 0
+	printf "Commands: d (down)"
+	printf "          u (up)"
+	printf "          q (quit)"
+	tput cup $cursor $filecolumn
+	command=$(dd bs=3 count=1 2> /dev/null)
+	case $command in
+		
+		d)if [ $cursor -lt 11 -a $((filenum + cursor)) -lt $(($filetotal + 11))  ]
+			            then cursor=$((cursor + 1))
+					             fi ;;
+           u)if [ $cursor -gt 2 ]
+            then cursor=$((cursor - 1))
+          fi ;;		    
+	   q)rm /tmp/pathdisplay.temp.$$
+		stty icanon echo
+		   tput cup 19 0
+		   exit 0 ;;
+	   *);;	  
+  esac
+  
+  done
